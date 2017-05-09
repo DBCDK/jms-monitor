@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<!--
+     Copyright (C) 2017 DBC A/S (http://dbc.dk/)
+    
+     This is part of jms-monitor
+    
+     jms-monitor is free software: you can redistribute it and/or modify
+     it under the terms of the GNU General Public License as published by
+     the Free Software Foundation, either version 3 of the License, or
+     (at your option) any later version.
+    
+     jms-monitor is distributed in the hope that it will be useful,
+     but WITHOUT ANY WARRANTY; without even the implied warranty of
+     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+     GNU General Public License for more details.
+    
+     You should have received a copy of the GNU General Public License
+     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-->
+<html>
+    <head>
+        <title>Message Queue Interface</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <script type="text/javascript">
+            var ajax = function (url, cb, errorCb, post) {
+                var req = new XMLHttpRequest();
+                req.onreadystatechange = function () {
+                    if (req.readyState === XMLHttpRequest.DONE) {
+                        if (req.status === 200) {
+                            cb(req.responseText);
+                        } else if (errorCb !== undefined) {
+                            errorCb(req.responseText);
+                        } else {
+                            alert(req.responseText);
+                        }
+                    }
+                };
+                document.getElementById("url").value = url;
+                if (post !== undefined) {
+                    req.open("POST", url, true);
+                    req.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+                    req.setRequestHeader("Content-Length", post.length);
+                    req.send(post);
+                } else {
+                    req.open("GET", url, true);
+                    req.send();
+                }
+                return req;
+            };
+            var setValue = function (text) {
+                document.getElementById("output").value = text;
+            };
+            var buildQuery = function () {
+                var i = 2;
+                var realUrl = document.location.href;
+                realUrl = realUrl.substring(0, realUrl.lastIndexOf('/') + 1) + "api";
+                if (arguments.length > 0) {
+                    realUrl = realUrl + "/" + arguments[0];
+                }
+                if (arguments.length > 1) {
+                    realUrl = realUrl + "/" + document.getElementById(arguments[1]).value;
+                }
+                var d = '?';
+                while (arguments.length > i) {
+                    var k = arguments[i++];
+                    var v = document.getElementById(k).value;
+                    if (v !== '') {
+                        realUrl += d + k + '=' + escape(v);
+                        d = '&';
+                    }
+                }
+                return realUrl;
+            };
+            var buildPost = function (form) {
+                var post = "";
+                var d = "";
+                for (var i = 0; i < form.length; i++) {
+                    var field = form[i];
+                    if (field.name !== '')
+                        post = post + d + escape(field.name) + "=" + escape(field.value);
+                    d = '&';
+                }
+                return post;
+            };
+            var addPropSet = function (t) {
+                var input = document.createElement("input");
+                input.setAttribute("name", "key");
+                input.setAttribute("placeholder", "property-name");
+                t.parentNode.insertBefore(input, t);
+                var select = document.createElement("select");
+                select.setAttribute("name", "type");
+                t.parentNode.insertBefore(select, t);
+                var option = document.createElement("option");
+                option.setAttribute("value", "s");
+                option.appendChild(document.createTextNode("String"));
+                select.appendChild(option);
+                var option = document.createElement("option");
+                option.setAttribute("value", "i");
+                option.appendChild(document.createTextNode("Integer"));
+                select.appendChild(option);
+                var option = document.createElement("option");
+                option.setAttribute("value", "d");
+                option.appendChild(document.createTextNode("Double"));
+                select.appendChild(option);
+                var option = document.createElement("option");
+                option.setAttribute("value", "b");
+                option.appendChild(document.createTextNode("Boolean"));
+                select.appendChild(option);
+                var input = document.createElement("input");
+                input.setAttribute("name", "value");
+                input.setAttribute("placeholder", "property");
+                t.parentNode.insertBefore(input, t);
+                var br = document.createElement("br");
+                t.parentNode.insertBefore(br, t);
+            }
+
+        </script>
+        <style type="text/css">
+            textarea {
+                width: 90vw;
+            }
+            textarea {
+                height: 25vh;
+            }
+            #url {
+                width: calc(90vw - 16px);
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Monitor Queue</h1>
+        <form>
+            <input id="name" placeholder="queue name">
+            <input id="filter" placeholder="filter ie. foo='bar' AND bar<>123">
+            <input id="count" placeholder="number to show (for content only)">
+            <input type="button" value="age" onclick="ajax(buildQuery(this.value, 'name', 'filter'), setValue, setValue);">
+            <input type="button" value="content" onclick="ajax(buildQuery(this.value, 'name', 'filter', 'count'), setValue, setValue);">
+            <input id="url" readonly="">
+            <textarea id="output"></textarea>
+        </form>
+        <h1>Create Message</h1>
+        <form onsubmit="ajax(buildQuery('new'), setValue, setValue, buildPost(this)); return false;">
+            <input type="text" name="queue" placeholder="queue name"/>
+            <br/>
+            <textarea name="json">{"doofenshmirtz":"WOOT! WOOT!"}</textarea>
+            <br/>
+            <input type="button" value="+ property" onclick="addPropSet(this);"/>
+            <input type="submit" value="Send" onclick="ajax(buildQuery('new'), setValue, setValue, buildPost(this.form));"/>
+        </form>
+        <hr/>
+        <h6>Copyright © 2017 DBC A/S (http://dbc.dk/)</h6>
+    </body>
+</html>
