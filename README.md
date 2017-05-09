@@ -15,4 +15,4 @@ JavaEE application to monitor message queues
 
  * Create a message with optional properties
 
- * curl -v "http://localhost:8080/jms-monitor/api/new?queue=myqueue&json=`perl -MURI::Escape -pe 's/(.*)/uri_esca($1)/e;'`&key=foo&type=s&value=bar&key=num&type=i&value=10"
+ * curl -v "http://localhost:8080/jms-monitor/api/new?queue=myqueue&json=`perl -MURI::Escape -pe 's/(.*)/uri_escape($1)/e;'`&key=foo&type=s&value=bar&key=num&type=i&value=10"
