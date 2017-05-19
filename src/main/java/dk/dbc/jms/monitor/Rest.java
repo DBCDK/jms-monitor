@@ -54,6 +54,8 @@ public class Rest {
 
     private static final org.slf4j.Logger log = LoggerFactory.getLogger(Rest.class);
 
+    private static final int TRIES = 10;
+
     @Inject
     @JMSConnectionFactory("jms/JmsFactory")
     JMSContext jmsContext;
@@ -70,26 +72,28 @@ public class Rest {
     @Produces(MediaType.TEXT_PLAIN)
     public Response age(@PathParam("queueName") String queueName,
                         @QueryParam("filter") String filter) {
-        try {
-            QueueBrowser browser = createBrowser(queueName, filter);
-            Enumeration enumeration = browser.getEnumeration();
-            if (enumeration.hasMoreElements()) {
-                Object elem = enumeration.nextElement();
-                if (elem instanceof Message) {
-                    Message message = (Message) elem;
-                    long queued = message.getJMSTimestamp();
-                    long age = ( System.currentTimeMillis() - queued ) / 1000;
-                    return Response.ok(age).build();
+        for (int i = 0 ; i < TRIES ; i++) {
+            try {
+                QueueBrowser browser = createBrowser(queueName, filter);
+                Enumeration enumeration = browser.getEnumeration();
+                if (enumeration.hasMoreElements()) {
+                    Object elem = enumeration.nextElement();
+                    if (elem instanceof Message) {
+                        Message message = (Message) elem;
+                        long queued = message.getJMSTimestamp();
+                        long age = ( System.currentTimeMillis() - queued ) / 1000;
+                        return Response.ok(age).build();
+                    } else {
+                        return Response.serverError().entity("Unknown message class: " + elem.getClass().getCanonicalName()).build();
+                    }
                 } else {
-                    return Response.serverError().entity("Unknown message class: " + elem.getClass().getCanonicalName()).build();
+                    return Response.ok(0).build();
                 }
-            } else {
-                return Response.ok(0).build();
+            } catch (JMSException ex) {
+                System.err.println(ex.getMessage());
             }
-        } catch (JMSException ex) {
-            System.err.println(ex.getMessage());
-            return Response.serverError().entity("Error: " + ex.getMessage()).build();
         }
+        return Response.serverError().entity("9999999").build();
     }
 
     /**
@@ -107,29 +111,31 @@ public class Rest {
     public Response content(@PathParam("queueName") String queueName,
                             @QueryParam("filter") String filter,
                             @QueryParam("count") @DefaultValue("100") Integer count) {
-        try {
-            QueueBrowser browser = createBrowser(queueName, filter);
-            Enumeration enumeration = browser.getEnumeration();
-            StringBuilder sb = new StringBuilder();
-            sb.append("[");
-            String objectPrefix = "";
-            while (enumeration.hasMoreElements() && --count >= 0) {
-                Object elem = enumeration.nextElement();
-                if (elem instanceof Message) {
-                    Message message = (Message) elem;
-                    sb.append(objectPrefix)
-                            .append(message.getBody(Object.class).toString());
-                    objectPrefix = ",\n";
-                } else {
-                    return Response.serverError().entity("Unknown message class: " + elem.getClass().getCanonicalName()).build();
+        for (int i = 0 ; i < TRIES ; i++) {
+            try {
+                QueueBrowser browser = createBrowser(queueName, filter);
+                Enumeration enumeration = browser.getEnumeration();
+                StringBuilder sb = new StringBuilder();
+                sb.append("[");
+                String objectPrefix = "";
+                while (enumeration.hasMoreElements() && --count >= 0) {
+                    Object elem = enumeration.nextElement();
+                    if (elem instanceof Message) {
+                        Message message = (Message) elem;
+                        sb.append(objectPrefix)
+                                .append(message.getBody(Object.class).toString());
+                        objectPrefix = ",\n";
+                    } else {
+                        return Response.serverError().entity("Unknown message class: " + elem.getClass().getCanonicalName()).build();
+                    }
                 }
+                sb.append("]");
+                return Response.ok(sb.toString()).build();
+            } catch (JMSException ex) {
+                System.err.println(ex.getMessage());
             }
-            sb.append("]");
-            return Response.ok(sb.toString()).build();
-        } catch (JMSException ex) {
-            System.err.println(ex.getMessage());
-            return Response.serverError().entity("Error: " + ex.getMessage()).build();
         }
+        return Response.serverError().entity("Error").build();
     }
 
     /**
@@ -200,9 +206,10 @@ public class Rest {
                         throw new IllegalStateException("Unknown type: " + types.get(i));
                 }
             }
-            String delay =  params.getFirst("delay");
-            if(delay == null || delay.isEmpty())
+            String delay = params.getFirst("delay");
+            if (delay == null || delay.isEmpty()) {
                 delay = "0";
+            }
             producer.setDeliveryDelay(Long.parseUnsignedLong(delay));
             producer.send(queue, message);
             return Response.ok("Ok").build();
