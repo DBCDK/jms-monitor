@@ -200,6 +200,10 @@ public class Rest {
                         throw new IllegalStateException("Unknown type: " + types.get(i));
                 }
             }
+            String delay =  params.getFirst("delay");
+            if(delay == null || delay.isEmpty())
+                delay = "0";
+            producer.setDeliveryDelay(Long.parseUnsignedLong(delay));
             producer.send(queue, message);
             return Response.ok("Ok").build();
         } catch (JMSException | RuntimeException ex) {
